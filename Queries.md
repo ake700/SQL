@@ -138,6 +138,7 @@ SELECT *
 FROM self.cad_jobs
 WHERE geo LIKE ("N%") and ref_date in ("1996", "2016");
 ```
+**Note**: `%` is a wildcard. Other wildcards and their uses can be found [here](https://www.w3schools.com/sql/sql_wildcards.asp)
 
 Order the column in descending order by ID for the geography that is not in Canada
 ```sql
@@ -178,9 +179,75 @@ Now let's add empty columns to populate in the original table. We also need to d
 SET SQL_SAFE_UPDATES = 0;
 UPDATE self.cad_jobs 
 INNER JOIN self.a ON cad_jobs.DGUID = a.DGUID
-SET cad_jobs.coordinate = a.coordinates; 
+SET cad_jobs.coordinate = a.coordinates
+SET cad_jobs.amount = a.amount;
 SET SQL_SAFE_UPDATES = 1;
 ```
 
 Double check the ```database.table1``` to make sure that the columns have been properly joined.
+Looks like we have a couple duplicate columns actually, so let's drop those
 
+```sql
+ALTER TABLE self.cad_jobs
+DROP COLUMN Coordinates,
+DROP COLUMN Number;
+```
+
+Looking at the bottom of the table, which can be done by
+```sql
+SELECT *
+FROM self.cad_jobs 
+ORDER BY DGUID DESC LIMIT 10;
+```
+
+we can see that there's an extra row with no values at the bottom. Let's delete that.
+```sql
+DELETE FROM self.cad_jobs
+WHERE DGUID = 223081;
+```
+
+### 3. More complex queries from the VPD Crimes data
+
+Create the table first, load, then check
+```sql
+CREATE TABLE van_crime (
+	ID INTEGER NOT NULL AUTO_INCREMENT, #Unique ID for the record; DGUID will be assigned a unique value if new entries added
+    crime_type VARCHAR(150) NOT NULL,
+    crime_year INTEGER NOT NULL,
+    crime_month INTEGER NOT NULL,
+    crime_day INTEGER NOT NULL, 
+    crime_hour INTEGER NOT NULL,
+    crime_minute INTEGER NOT NULL,
+    crime_block VARCHAR(150),
+    neighborhood VARCHAR(150) NOT NULL,
+    coord_x integer, # Coordinate values projected in UTM Zone 10
+	  coord_y integer, # Coordinate values projected in UTM Zone 10
+    PRIMARY KEY (ID)
+    );
+
+LOAD DATA LOCAL INFILE "C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/Crimes2015_2022.csv" INTO TABLE van_crime
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n' # prevents the extra row from being added at the bottom
+IGNORE 2 ROWS;
+
+# To clean up the table - if needed
+DELETE FROM self.van_crime 
+WHERE ID = 303219	
+```
+
+#### Example questions from this data:
+1. Does any of the data have duplicates? If not, create one then delete
+2. What is the first and last 5 entries in the table?
+3. What year/neighborhood has the most crimes?
+4. Which neighborhoods (by ranking) are the most to least safe based on the average crime counts?
+5. Is there a correlation between time, day/month and the number of crimes? 
+6. When is the safest to be out and about?
+7. When is the least safe to be out?
+8. What is the most amount of (type of crime) in (some neighborhood)? 
+9. Fetch the block(s) given the type of crime
+10. Does (neighborhood) have more crime than (neighborhood2)?
+11. How many crimes are committed after (hour)? 
+
+```sql
+# Question 1
