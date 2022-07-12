@@ -238,16 +238,91 @@ WHERE ID = 303219
 
 #### Example questions from this data:
 1. Does any of the data have duplicates? If not, create one then delete
-2. What is the first and last 5 entries in the table?
-3. What year/neighborhood has the most crimes?
-4. Which neighborhoods (by ranking) are the most to least safe based on the average crime counts?
-5. Is there a correlation between time, day/month and the number of crimes? 
-6. When is the safest to be out and about?
-7. When is the least safe to be out?
-8. What is the most amount of (type of crime) in (some neighborhood)? 
-9. Fetch the block(s) given the type of crime
-10. Does (neighborhood) have more crime than (neighborhood2)?
-11. How many crimes are committed after (hour)? 
 
+Create a duplicate if needed
 ```sql
-# Question 1
+INSERT INTO self.van_crime
+	(crime_type, crime_year, crime_month, crime_day, crime_hour, crime_minute, crime_block, neighborhood, coord_x, coord_y)
+SELECT 
+	crime_type, crime_year, crime_month, crime_day, crime_hour, crime_minute, crime_block, neighborhood, coord_x, coord_y
+FROM self.van_crime
+WHERE ; # Input the specific conditions (column values) and not the primary key
+```
+Check for duplicates
+```sql
+SELECT crime_type, crime_year, crime_month, crime_day, crime_hour, crime_minute, crime_block, neighborhood, coord_x, coord_y, COUNT(*)
+FROM self.van_crime
+GROUP BY crime_type, crime_year, crime_month, crime_day, crime_hour, crime_minute, crime_block, neighborhood, coord_x, coord_y
+HAVING COUNT(*) > 1;
+```
+Remove duplicates
+```sql
+# create a new tmp_van_crime table
+CREATE TABLE tmp_van_crime LIKE self.van_crime;
+# add a unique constraint
+ALTER TABLE tmp_van_crime ADD UNIQUE (crime_type, crime_year, crime_month, crime_day, crime_hour, crime_minute, crime_block, neighborhood, coord_x, coord_y);
+# scan over the van_crime table to insert van_crime entries
+INSERT IGNORE INTO tmp_van_crime SELECT * FROM van_crime ORDER BY ID;
+# rename tables
+RENAME TABLE van_crime TO backup_van_crime, tmp_van_crime TO van_crime;
+```
+
+2. What is the first and last 5 entries in the table?
+Prints the top and bottom 5 entries for all rows
+```sql
+(SELECT *
+FROM self.van_crime
+ORDER BY ID ASC LIMIT 5)
+UNION ALL
+(SELECT *
+FROM self.van_crime
+ORDER BY ID DESC LIMIT 5)
+```
+
+3. What year/neighborhood has the most crimes?
+```sql
+SELECT neighborhood, COUNT(crime_type) as count
+FROM van_crime
+GROUP BY neighborhood
+ORDER BY count DESC;
+```
+
+4. When is the safest and least safe time to be out and about?
+Prints the top and bottom 5 hours and the associated count of crime type
+```sql
+(SELECT crime_hour, COUNT(crime_type) as count
+FROM van_crime
+GROUP BY crime_hour
+ORDER BY count ASC LIMIT 5)
+UNION ALL
+(SELECT crime_hour, COUNT(crime_type) as count
+FROM van_crime
+GROUP BY crime_hour
+ORDER BY count DESC LIMIT 5)
+```
+
+5. What is the most amount of (type of crime) in (some neighborhood)? 
+Most frequent type of crime in CBD and Oakridge
+```sql
+SELECT crime_type, COUNT(crime_type) as count
+FROM van_crime
+WHERE neighborhood in ("Central Business District", "Oakridge")
+GROUP BY crime_type
+ORDER BY count DESC;
+```
+
+6. Fetch the block(s) given the type of crime
+```sql
+SELECT crime_block, COUNT(crime_type) as count
+FROM van_crime
+GROUP BY crime_block
+ORDER BY count DESC;
+```
+
+7. How many crimes are committed after (hour)? 
+```sql
+SELECT crime_hour, COUNT(crime_type) as count
+FROM van_crime
+GROUP BY crime_hour
+ORDER BY count DESC;
+```
