@@ -1,4 +1,4 @@
-# SQL Exercises
+# MySQL Guide and Examples
 
 The intent of the markdown is to provide a guideline for SQL queries in the future and will be updated as needed or requested. 
 
